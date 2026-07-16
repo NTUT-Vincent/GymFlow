@@ -2,14 +2,15 @@
   "name": "GymFlow 智慧健身房",
   "short_name": "GymFlow",
   "description": "輕鬆預約器材，讓每一次訓練自然流動。",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f7f1ff",
   "theme_color": "#aa8ed6",
   "lang": "zh-Hant",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

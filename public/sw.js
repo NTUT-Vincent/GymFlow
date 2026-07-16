@@ -1,5 +1,10 @@
-const CACHE = 'gymflow-shell-v1'
-const APP_SHELL = ['/', '/manifest.webmanifest', '/icon.svg']
+const CACHE = 'gymflow-shell-v2'
+const BASE_URL = self.registration.scope
+const APP_SHELL = [
+  BASE_URL,
+  new URL('manifest.webmanifest', BASE_URL).href,
+  new URL('icon.svg', BASE_URL).href,
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)))
@@ -22,6 +27,6 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE).then((cache) => cache.put(event.request, copy))
         return response
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/'))),
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match(BASE_URL))),
   )
 })
