@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasRole(roles) {
+      return signedIn() && currentUser().data.role in roles;
+    }
+
+    function isStaff() {
+      return hasRole(['staff', 'admin']);
+    }
+
+    function isAdmin() {
+      return hasRole(['admin']);
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'member';
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role;
+      allow update, delete: if isAdmin();
+    }
+
+    match /gyms/{gymId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /equipment/{equipmentId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isStaff();
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if signedIn() && (resource.data.memberId == request.auth.uid || isStaff());
+      allow create: if signedIn()
+        && request.resource.data.memberId == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if signedIn()
+        && resource.data.memberId == request.auth.uid
+        && request.resource.data.memberId == resource.data.memberId
+        && request.resource.data.status in ['pending', 'cancelled'];
+      allow update, delete: if isStaff();
+    }
+
+    match /schedules/{scheduleId} {
+      allow read: if signedIn() && (resource.data.memberId == request.auth.uid || isStaff());
+      allow create, update, delete: if isStaff();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
