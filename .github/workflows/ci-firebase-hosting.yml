@@ -1,4 +1,3 @@
-# Manual rerun trigger
 name: CI and Firebase Hosting
 
 on:
@@ -57,9 +56,9 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
 
-      - name: Deploy Firestore rules and indexes
+      - name: Deploy Firestore rules
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.FIREBASE_SERVICE_ACCOUNT != ''
-        run: npx firebase deploy --only firestore --project gymflow-a7664 --non-interactive
+        run: npx firebase deploy --only firestore:rules --project gymflow-a7664 --non-interactive
 
       - name: Deploy main to Firebase Hosting
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.FIREBASE_SERVICE_ACCOUNT != ''
