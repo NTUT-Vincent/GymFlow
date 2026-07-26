@@ -50,6 +50,16 @@ jobs:
           projectId: gymflow-a7664
           expires: 7d
 
+      - name: Prepare Firebase service account for production deploy
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.FIREBASE_SERVICE_ACCOUNT != ''
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy Firestore rules and indexes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.FIREBASE_SERVICE_ACCOUNT != ''
+        run: npx firebase deploy --only firestore --project gymflow-a7664 --non-interactive
+
       - name: Deploy main to Firebase Hosting
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.FIREBASE_SERVICE_ACCOUNT != ''
         uses: FirebaseExtended/action-hosting-deploy@v0
