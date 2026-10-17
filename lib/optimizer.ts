@@ -60,7 +60,8 @@ export function optimizeSchedule(
   )
 
   const ordered = [...pending].sort((a, b) => {
-    const candidateDiff = (candidatesByBooking.get(a.id)?.length ?? 0) - (candidatesByBooking.get(b.id)?.length ?? 0)
+    const candidateDiff =
+      (candidatesByBooking.get(a.id)?.length ?? 0) - (candidatesByBooking.get(b.id)?.length ?? 0)
     return candidateDiff || b.priority - a.priority || a.startAt.localeCompare(b.startAt)
   })
 

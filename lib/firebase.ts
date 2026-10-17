@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, type User } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const defaultConfig = {
@@ -13,21 +13,26 @@ const defaultConfig = {
 }
 
 const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || defaultConfig.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || defaultConfig.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || defaultConfig.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || defaultConfig.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultConfig.messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || defaultConfig.appId,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || defaultConfig.measurementId,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || defaultConfig.apiKey,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || defaultConfig.authDomain,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || defaultConfig.projectId,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || defaultConfig.storageBucket,
+  messagingSenderId:
+    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || defaultConfig.messagingSenderId,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || defaultConfig.appId,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || defaultConfig.measurementId,
 }
 
 export const firebaseConfigured = Boolean(config.apiKey && config.projectId && config.appId)
 export const firebaseApp = firebaseConfigured
-  ? (getApps().length > 0 ? getApp() : initializeApp(config))
+  ? getApps().length > 0
+    ? getApp()
+    : initializeApp(config)
   : null
 export const auth = firebaseApp ? getAuth(firebaseApp) : null
 export const db = firebaseApp ? getFirestore(firebaseApp) : null
+
+export type FirebaseUser = User | null
 
 export const signInWithGoogle = async () => {
   if (!auth) return null

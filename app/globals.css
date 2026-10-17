@@ -27,13 +27,14 @@ h1, h2, h3, p { margin-top: 0; }
 
 .app-shell { min-height: 100vh; }
 .topbar { height: 78px; padding: 0 32px; background: rgba(255, 250, 243, 0.92); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 30; backdrop-filter: blur(14px); }
-.brand { border: 0; background: none; display: flex; align-items: center; gap: 12px; cursor: pointer; text-align: left; padding: 0; }
+.brand { border: 0; background: none; display: flex; align-items: center; gap: 12px; cursor: pointer; text-align: left; padding: 0; text-decoration: none; color: inherit; }
 .brand-mark { width: 43px; height: 43px; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 48% 44% 51% 46%; background: var(--lavender-300); font-family: 'Patrick Hand', cursive; font-size: 20px; transform: rotate(-3deg); box-shadow: 3px 3px 0 var(--ink); }
 .brand strong { display: block; font-family: 'Patrick Hand', 'Klee One', cursive; font-size: 25px; line-height: 1; letter-spacing: .02em; }
 .brand small { display: block; color: var(--muted); font-family: 'Patrick Hand', cursive; font-size: 13px; letter-spacing: .06em; }
 .mode-switch { background: var(--lavender-100); padding: 4px; border-radius: 14px; display: flex; border: 1px solid rgba(103, 76, 136, .08); }
 .mode-switch button { border: 0; background: transparent; padding: 8px 16px; border-radius: 10px; cursor: pointer; color: var(--muted); font-size: 13px; }
 .mode-switch button.active { background: var(--cream); color: var(--lavender-700); box-shadow: 0 3px 10px rgba(73, 61, 84, .08); font-weight: 600; }
+.mode-switch button:disabled { opacity: 0.5; cursor: not-allowed; }
 .account-area { display: flex; align-items: center; gap: 9px; }
 .sync-dot { width: 8px; height: 8px; background: #b9adb9; border-radius: 50%; box-shadow: 0 0 0 4px #eee8ee; }
 .sync-dot.online { background: #6cab88; box-shadow: 0 0 0 4px #e2f1e8; }
@@ -46,7 +47,7 @@ h1, h2, h3, p { margin-top: 0; }
 .workspace { display: grid; grid-template-columns: 230px 1fr; min-height: calc(100vh - 78px); }
 .sidebar { padding: 34px 20px 24px; border-right: 1px solid var(--line); background: rgba(255, 250, 243, .56); position: sticky; top: 78px; height: calc(100vh - 78px); }
 .side-title { padding: 0 13px 13px; color: var(--muted); font-size: 12px; }
-.nav-button { width: 100%; border: 0; background: transparent; padding: 12px 14px; display: flex; gap: 12px; border-radius: 13px; cursor: pointer; text-align: left; margin-bottom: 3px; }
+.nav-button { width: 100%; border: 0; background: transparent; padding: 12px 14px; display: flex; gap: 12px; border-radius: 13px; cursor: pointer; text-align: left; margin-bottom: 3px; text-decoration: none; color: inherit; }
 .nav-button span { width: 20px; font-family: 'Patrick Hand', cursive; font-size: 19px; line-height: 1; }
 .nav-button.active { background: var(--lavender-200); color: var(--lavender-700); font-weight: 600; }
 .nav-button.active::after { content: '〰'; margin-left: auto; font-family: 'Patrick Hand', cursive; }
