@@ -8,3 +8,14 @@
 - Relevant commits: `ed7d6e4` (mobile UI), `57da62e` (overflow fix). Vercel build status for these commits was reported successful.
 - Retrospectively added project tracking files after identifying an omission in the coding-agent workflow.
 - Follow-up: verify actual mobile layout at 320px / 375px / 393px and confirm no horizontal scrolling on each view.
+
+[2026-10-18] Synchronized the GymFlow as-built project documentation on main.
+- Audited AGENT.md, TODO.md, PROGRESS.log, SPEC.md, README.md, the Supabase SQL migration, package.json and the active Next.js/React/Supabase/optimizer components.
+- Replaced obsolete Firebase/Firestore descriptions in docs/architecture.md and docs/deployment.md with the current Supabase Auth/PostgreSQL/RLS/Vercel implementation.
+- Updated docs/optimizer.md to describe the inline synchronous solver and atomic PostgreSQL commit_schedule_batch RPC instead of Firestore writes.
+- Added docs/supabase-schema.md documenting tables, RLS/roles, RPC contracts, Realtime publication and read-only diagnostic SQL.
+- Expanded docs/mobile-ui.md to record the 393px overflow screenshot, CSS corrective commit and unverified post-fix acceptance.
+- Added docs/qa-checklist.md separating successful builds and user-observed cloud sync from pending viewport, accessibility, authorization, conflict and optimizer/cancellation tests.
+- Revised SPEC.md (v0.2.0), TODO.md and README.md to capture current features, first-gym and fixed-hours limitations, production environment, known QA gaps and the decision to postpone automatic Cron scheduling.
+- All changes in this documentation session are documentation-only; app code, SQL schema, Supabase data and application behavior were not modified.
+- Next: verify production/staging E2E booking and assignment/cancellation and perform post-fix mobile viewport regression tests.
