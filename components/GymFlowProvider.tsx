@@ -9,21 +9,10 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { User } from 'firebase/auth'
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  onSnapshot,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-  writeBatch,
-} from 'firebase/firestore'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { demoBookings, demoEquipment, demoGyms, demoSchedules } from '@/data/demo'
-import { auth, db, firebaseConfigured, signInWithGoogle, logout } from '@/lib/firebase'
+import { createClient, supabaseConfigured } from '@/lib/supabase/client'
+import { toBooking, toEquipment, toGym, toSchedule } from '@/lib/supabase/mappers'
 import { runOptimizer } from '@/lib/optimizerClient'
 import type {
   Booking,
@@ -36,6 +25,8 @@ import type {
 } from '@/types'
 
 const STORAGE_KEY = 'gymflow-demo-v1'
+type Client = NonNullable<ReturnType<typeof createClient>>
+type AppUser = { uid: string; displayName: string | null; email: string | null }
 
 interface LocalSnapshot {
   gyms: Gym[]
@@ -44,36 +35,41 @@ interface LocalSnapshot {
   schedules: ScheduleItem[]
 }
 
-const fallbackSnapshot: LocalSnapshot = {
+const demoSnapshot: LocalSnapshot = {
   gyms: demoGyms,
   equipment: demoEquipment,
   bookings: demoBookings,
   schedules: demoSchedules,
 }
+const emptySnapshot: LocalSnapshot = { gyms: [], equipment: [], bookings: [], schedules: [] }
 
-const readLocalSnapshot = (): LocalSnapshot => {
+function readLocalSnapshot(): LocalSnapshot {
   try {
-    const value = localStorage.getItem(STORAGE_KEY)
-    return value ? JSON.parse(value) : fallbackSnapshot
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) as LocalSnapshot : demoSnapshot
   } catch {
-    return fallbackSnapshot
+    return demoSnapshot
   }
 }
 
-const normalizeDocs = <T extends { id: string }>(
-  snapshot: { docs: Array<{ id: string; data: () => unknown }> },
-) =>
-  snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<T, 'id'>) })) as T[]
+function toAppUser(user: SupabaseUser): AppUser {
+  return {
+    uid: user.id,
+    displayName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? null,
+    email: user.email ?? null,
+  }
+}
 
 interface GymFlowContextType {
   gyms: Gym[]
   equipment: Equipment[]
   bookings: Booking[]
   schedules: ScheduleItem[]
-  user: User | null
+  user: AppUser | null
   role: Role
   cloudReady: boolean
-  firebaseConfigured: boolean
+  authLoading: boolean
+  supabaseConfigured: boolean
   optimization: OptimizationResult | null
   toast: string
   addGym: (input: Omit<Gym, 'id'>) => Promise<void>
@@ -83,7 +79,7 @@ interface GymFlowContextType {
   cancelBooking: (id: string) => Promise<void>
   optimize: () => Promise<OptimizationResult>
   resetDemo: () => void
-  signInWithGoogle: () => Promise<unknown>
+  signInWithGoogle: () => Promise<void>
   logout: () => Promise<void>
   setMode: (mode: 'member' | 'admin') => void
   mode: 'member' | 'admin'
@@ -93,248 +89,307 @@ interface GymFlowContextType {
 const GymFlowContext = createContext<GymFlowContextType | undefined>(undefined)
 
 export function GymFlowProvider({ children }: { children: ReactNode }) {
-  const [gyms, setGyms] = useState<Gym[]>(fallbackSnapshot.gyms)
-  const [equipment, setEquipment] = useState<Equipment[]>(fallbackSnapshot.equipment)
-  const [bookings, setBookings] = useState<Booking[]>(fallbackSnapshot.bookings)
-  const [schedules, setSchedules] = useState<ScheduleItem[]>(fallbackSnapshot.schedules)
+  const initial = supabaseConfigured ? emptySnapshot : demoSnapshot
+  const [gyms, setGyms] = useState<Gym[]>(initial.gyms)
+  const [equipment, setEquipment] = useState<Equipment[]>(initial.equipment)
+  const [bookings, setBookings] = useState<Booking[]>(initial.bookings)
+  const [schedules, setSchedules] = useState<ScheduleItem[]>(initial.schedules)
   const [localReady, setLocalReady] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AppUser | null>(null)
   const [role, setRole] = useState<Role>('member')
   const [cloudReady, setCloudReady] = useState(false)
+  const [authLoading, setAuthLoading] = useState(supabaseConfigured)
   const [optimization, setOptimization] = useState<OptimizationResult | null>(null)
   const [mode, setMode] = useState<'member' | 'admin'>('member')
   const [toast, setToast] = useState('')
 
   const notify = useCallback((message: string) => {
     setToast(message)
-    window.setTimeout(() => setToast(''), 2800)
+    window.setTimeout(() => setToast(''), 3500)
   }, [])
 
-  useEffect(() => {
-    const saved = readLocalSnapshot()
-    setGyms(saved.gyms)
-    setEquipment(saved.equipment)
-    setBookings(saved.bookings)
-    setSchedules(saved.schedules)
-    setLocalReady(true)
+  const applySnapshot = useCallback((snapshot: LocalSnapshot) => {
+    setGyms(snapshot.gyms)
+    setEquipment(snapshot.equipment)
+    setBookings(snapshot.bookings)
+    setSchedules(snapshot.schedules)
   }, [])
 
-  useEffect(() => {
-    if (!firebaseConfigured || !auth || !db) return
-    const liveStops: Array<() => void> = []
-
-    const unsubscribeAuth = auth.onAuthStateChanged(async (nextUser) => {
-      liveStops.splice(0).forEach((stop) => stop())
-      setUser(nextUser)
-      setCloudReady(false)
-      if (!nextUser || !db) return
-
-      const userRef = doc(db, 'users', nextUser.uid)
-      const userSnapshot = await getDoc(userRef)
-      let resolvedRole: Role = 'member'
-      if (!userSnapshot.exists()) {
-        await setDoc(userRef, {
-          displayName: nextUser.displayName || 'GymFlow 會員',
-          email: nextUser.email || '',
-          role: 'member',
-          createdAt: new Date().toISOString(),
-        })
-      } else {
-        resolvedRole = (userSnapshot.data().role as Role) || 'member'
-      }
-      setRole(resolvedRole)
-
-      const staffView = resolvedRole === 'staff' || resolvedRole === 'admin'
-      const bookingSource = staffView
-        ? collection(db, 'bookings')
-        : query(collection(db, 'bookings'), where('memberId', '==', nextUser.uid))
-      const scheduleSource = staffView
-        ? collection(db, 'schedules')
-        : query(collection(db, 'schedules'), where('memberId', '==', nextUser.uid))
-
-      liveStops.push(
-        onSnapshot(collection(db, 'gyms'), (snapshot) => setGyms(normalizeDocs<Gym>(snapshot))),
-        onSnapshot(collection(db, 'equipment'), (snapshot) => setEquipment(normalizeDocs<Equipment>(snapshot))),
-        onSnapshot(bookingSource, (snapshot) => setBookings(normalizeDocs<Booking>(snapshot))),
-        onSnapshot(scheduleSource, (snapshot) => setSchedules(normalizeDocs<ScheduleItem>(snapshot))),
-      )
-      setCloudReady(true)
+  const syncData = useCallback(async (client: Client, uid: string, resolvedRole: Role) => {
+    const staff = resolvedRole === 'staff' || resolvedRole === 'admin'
+    const bookingsQuery = client.from('bookings').select('*')
+    const schedulesQuery = client.from('schedules').select('*')
+    const [gymResult, equipmentResult, bookingResult, scheduleResult] = await Promise.all([
+      client.from('gyms').select('*'),
+      client.from('equipment').select('*'),
+      staff ? bookingsQuery : bookingsQuery.eq('member_id', uid),
+      staff ? schedulesQuery : schedulesQuery.eq('member_id', uid),
+    ])
+    const error = [gymResult.error, equipmentResult.error, bookingResult.error, scheduleResult.error].find(Boolean)
+    if (error) throw new Error(error.message)
+    applySnapshot({
+      gyms: (gymResult.data ?? []).map(toGym),
+      equipment: (equipmentResult.data ?? []).map(toEquipment),
+      bookings: (bookingResult.data ?? []).map(toBooking),
+      schedules: (scheduleResult.data ?? []).map(toSchedule),
     })
-
-    return () => {
-      unsubscribeAuth()
-      liveStops.forEach((stop) => stop())
-    }
-  }, [])
+  }, [applySnapshot])
 
   useEffect(() => {
-    if (cloudReady || !localReady) return
+    if (supabaseConfigured) return
+    applySnapshot(readLocalSnapshot())
+    setLocalReady(true)
+  }, [applySnapshot])
+
+  useEffect(() => {
+    if (!supabaseConfigured) return
+    const client = createClient()
+    if (!client) return
+    let alive = true
+    let version = 0
+
+    const initialize = async (authUser: SupabaseUser | null) => {
+      const current = ++version
+      if (!alive) return
+      setAuthLoading(true)
+      setCloudReady(false)
+      if (!authUser) {
+        setUser(null)
+        setRole('member')
+        applySnapshot(emptySnapshot)
+        setAuthLoading(false)
+        return
+      }
+
+      try {
+        const { data: profile, error } = await client
+          .from('profiles').select('role').eq('id', authUser.id).single()
+        if (error) throw new Error(error.message)
+        const resolvedRole = (profile?.role ?? 'member') as Role
+        if (!alive || current !== version) return
+        setUser(toAppUser(authUser))
+        setRole(resolvedRole)
+        await syncData(client, authUser.id, resolvedRole)
+        if (!alive || current !== version) return
+        setCloudReady(true)
+      } catch (error) {
+        if (alive && current === version) {
+          notify(error instanceof Error ? error.message : '讀取 Supabase 資料失敗')
+        }
+      } finally {
+        if (alive && current === version) setAuthLoading(false)
+      }
+    }
+
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
+      // Avoid awaiting Supabase calls inside its auth event callback.
+      window.setTimeout(() => {
+        if (alive) void initialize(session?.user ?? null)
+      }, 0)
+    })
+    void client.auth.getUser().then(({ data, error }) => {
+      if (!alive) return
+      if (error) notify(error.message)
+      void initialize(data.user)
+    })
+    return () => {
+      alive = false
+      version += 1
+      subscription.unsubscribe()
+    }
+  }, [applySnapshot, notify, syncData])
+
+  useEffect(() => {
+    if (!supabaseConfigured || !cloudReady || !user) return
+    const client = createClient()
+    if (!client) return
+    let active = true
+    const refresh = () => {
+      if (active) void syncData(client, user.uid, role).catch((error: Error) => notify(error.message))
+    }
+    const channel = client.channel('gymflow-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gyms' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, refresh)
+      .subscribe()
+    const onFocus = () => refresh()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      active = false
+      window.removeEventListener('focus', onFocus)
+      void client.removeChannel(channel)
+    }
+  }, [cloudReady, user, role, notify, syncData])
+
+  useEffect(() => {
+    if (supabaseConfigured || !localReady) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ gyms, equipment, bookings, schedules }))
-  }, [bookings, cloudReady, equipment, gyms, schedules, localReady])
+  }, [gyms, equipment, bookings, schedules, localReady])
 
-  const addGym = useCallback(
-    async (input: Omit<Gym, 'id'>) => {
-      if (cloudReady && db) {
-        await addDoc(collection(db, 'gyms'), { ...input, createdBy: user?.uid ?? '' })
-        return
-      }
-      setGyms((items) => [...items, { ...input, id: crypto.randomUUID() }])
-    },
-    [cloudReady, db, user],
-  )
+  const requireCloud = useCallback(() => {
+    const client = createClient()
+    if (!client || !user || !cloudReady) throw new Error('請先使用 Google 登入並完成資料同步')
+    return { client, currentUser: user }
+  }, [user, cloudReady])
 
-  const addEquipment = useCallback(
-    async (input: Omit<Equipment, 'id'>) => {
-      if (cloudReady && db) {
-        await addDoc(collection(db, 'equipment'), input)
-        return
-      }
-      setEquipment((items) => [...items, { ...input, id: crypto.randomUUID() }])
-    },
-    [cloudReady, db],
-  )
+  const refresh = useCallback(async (client: Client) => {
+    if (user) await syncData(client, user.uid, role)
+  }, [user, role, syncData])
 
-  const addBooking = useCallback(
-    async (input: Omit<Booking, 'id' | 'memberId' | 'memberName' | 'status'>) => {
-      const value: Omit<Booking, 'id'> = {
-        ...input,
-        memberId: user?.uid ?? 'demo-member',
-        memberName: user?.displayName ?? '小宇',
-        status: 'pending',
-      }
-      if (cloudReady && db) {
-        await addDoc(collection(db, 'bookings'), value)
-        return
-      }
-      setBookings((items) => [...items, { ...value, id: crypto.randomUUID() }])
-    },
-    [cloudReady, db, user],
-  )
-
-  const updateEquipmentStatus = useCallback(
-    async (id: string, status: EquipmentStatus) => {
-      if (cloudReady && db) {
-        await updateDoc(doc(db, 'equipment', id), { status })
-        return
-      }
-      setEquipment((items) => items.map((item) => (item.id === id ? { ...item, status } : item)))
-    },
-    [cloudReady, db],
-  )
-
-  const cancelBooking = useCallback(async (id: string) => {
-    if (cloudReady && db) {
-      await updateDoc(doc(db, 'bookings', id), { status: 'cancelled' })
+  const addGym = useCallback(async (input: Omit<Gym, 'id'>) => {
+    if (supabaseConfigured) {
+      const { client, currentUser } = requireCloud()
+      const { error } = await client.from('gyms').insert({
+        name: input.name, address: input.address, open_time: input.openTime,
+        close_time: input.closeTime, created_by: currentUser.uid,
+      })
+      if (error) throw new Error(error.message)
+      await refresh(client)
       return
     }
-    setBookings((items) => items.map((item) => (item.id === id ? { ...item, status: 'cancelled' } : item)))
+    setGyms((items) => [...items, { ...input, id: crypto.randomUUID() }])
+  }, [requireCloud, refresh])
+
+  const addEquipment = useCallback(async (input: Omit<Equipment, 'id'>) => {
+    if (supabaseConfigured) {
+      const { client } = requireCloud()
+      const { error } = await client.from('equipment').insert({
+        gym_id: input.gymId, name: input.name, category: input.category,
+        zone: input.zone, status: input.status, utilization: input.utilization,
+        available_at: input.availableAt ?? null,
+      })
+      if (error) throw new Error(error.message)
+      await refresh(client)
+      return
+    }
+    setEquipment((items) => [...items, { ...input, id: crypto.randomUUID() }])
+  }, [requireCloud, refresh])
+
+  const addBooking = useCallback(async (
+    input: Omit<Booking, 'id' | 'memberId' | 'memberName' | 'status'>,
+  ) => {
+    if (supabaseConfigured) {
+      const { client, currentUser } = requireCloud()
+      const { error } = await client.from('bookings').insert({
+        gym_id: input.gymId,
+        member_id: currentUser.uid,
+        member_name: currentUser.displayName ?? 'GymFlow 會員',
+        category: input.category,
+        start_at: input.startAt,
+        duration_minutes: input.durationMinutes,
+        max_delay_minutes: input.maxDelayMinutes,
+        priority: 1,
+      })
+      if (error) throw new Error(error.message)
+      await refresh(client)
+      return
+    }
+    setBookings((items) => [...items, {
+      ...input, id: crypto.randomUUID(), memberId: 'demo-member',
+      memberName: '小宇', status: 'pending',
+    }])
+  }, [requireCloud, refresh])
+
+  const updateEquipmentStatus = useCallback(async (id: string, status: EquipmentStatus) => {
+    if (supabaseConfigured) {
+      const { client } = requireCloud()
+      const { error } = await client.from('equipment').update({ status }).eq('id', id)
+      if (error) throw new Error(error.message)
+      await refresh(client)
+      return
+    }
+    setEquipment((items) => items.map((item) => item.id === id ? { ...item, status } : item))
+  }, [requireCloud, refresh])
+
+  const cancelBooking = useCallback(async (id: string) => {
+    if (supabaseConfigured) {
+      const { client } = requireCloud()
+      const { error } = await client.rpc('cancel_booking', { p_booking_id: id })
+      if (error) throw new Error(error.message)
+      await refresh(client)
+      return
+    }
+    setBookings((items) => items.map((item) => item.id === id ? { ...item, status: 'cancelled' } : item))
     setSchedules((items) => items.filter((item) => item.bookingId !== id))
-  }, [cloudReady, db, schedules])
+  }, [requireCloud, refresh])
 
   const optimize = useCallback(async () => {
-    const eligible = bookings.filter((item) => item.status === 'pending')
-    const activeSchedules = schedules.filter((item) => {
-      const booking = bookings.find((value) => value.id === item.bookingId)
-      return !booking || booking.status !== 'cancelled'
-    })
-    const result = await runOptimizer(eligible, equipment, activeSchedules)
-    setOptimization(result)
-
-    if (cloudReady && db) {
-      const firestore = db
-      const batch = writeBatch(firestore)
-      result.schedules.forEach((item) => {
-        batch.set(doc(firestore, 'schedules', item.id), item)
-        batch.update(doc(firestore, 'bookings', item.bookingId), {
-          status: 'scheduled',
-          equipmentId: item.equipmentId,
+    const pending = bookings.filter((booking) => booking.status === 'pending')
+    const active = schedules.filter((item) => !bookings.some(
+      (booking) => booking.id === item.bookingId && booking.status === 'cancelled',
+    ))
+    const result = await runOptimizer(pending, equipment, active)
+    if (supabaseConfigured) {
+      const { client } = requireCloud()
+      if (role !== 'staff' && role !== 'admin') throw new Error('沒有執行排程的權限')
+      if (result.schedules.length) {
+        const { error } = await client.rpc('commit_schedule_batch', {
+          p_schedules: result.schedules.map((item) => ({
+            booking_id: item.bookingId,
+            equipment_id: item.equipmentId,
+            start_at: item.startAt,
+            end_at: item.endAt,
+            wait_minutes: item.waitMinutes,
+          })),
         })
-      })
-      await batch.commit()
+        if (error) throw new Error(error.message)
+      }
+      await refresh(client)
     } else {
-      const affected = new Set(result.schedules.map((item) => item.bookingId))
-      setSchedules((items) => [
-        ...items.filter((item) => !affected.has(item.bookingId)),
-        ...result.schedules,
-      ])
-      setBookings((items) =>
-        items.map((item) => {
-          const scheduled = result.schedules.find((schedule) => schedule.bookingId === item.id)
-          return scheduled ? { ...item, status: 'scheduled', equipmentId: scheduled.equipmentId } : item
-        }),
-      )
+      const assigned = new Set(result.schedules.map((item) => item.bookingId))
+      setSchedules((items) => [...items.filter((item) => !assigned.has(item.bookingId)), ...result.schedules])
+      setBookings((items) => items.map((item) => {
+        const schedule = result.schedules.find((entry) => entry.bookingId === item.id)
+        return schedule ? { ...item, status: 'scheduled', equipmentId: schedule.equipmentId } : item
+      }))
     }
-
+    setOptimization(result)
     return result
-  }, [bookings, equipment, schedules, cloudReady, db])
+  }, [bookings, equipment, schedules, requireCloud, role, refresh])
 
   const resetDemo = useCallback(() => {
-    setGyms(demoGyms)
-    setEquipment(demoEquipment)
-    setBookings(demoBookings)
-    setSchedules(demoSchedules)
+    if (supabaseConfigured) return
+    applySnapshot(demoSnapshot)
     setOptimization(null)
     localStorage.removeItem(STORAGE_KEY)
+  }, [applySnapshot])
+
+  const signInWithGoogle = useCallback(async () => {
+    const client = createClient()
+    if (!client) throw new Error('尚未設定 Supabase 環境變數')
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (error) throw new Error(error.message)
   }, [])
 
-  const value = useMemo(
-    () => ({
-      gyms,
-      equipment,
-      bookings,
-      schedules,
-      user,
-      role,
-      cloudReady,
-      toast,
-      firebaseConfigured,
-      optimization,
-      notify,
-      addGym,
-      addEquipment,
-      addBooking,
-      updateEquipmentStatus,
-      cancelBooking,
-      optimize,
-      resetDemo,
-      signInWithGoogle,
-      logout,
-      setMode,
-      mode,
-    }),
-    [
-      gyms,
-      equipment,
-      bookings,
-      schedules,
-      user,
-      role,
-      cloudReady,
-      toast,
-      firebaseConfigured,
-      optimization,
-      notify,
-      addGym,
-      addEquipment,
-      addBooking,
-      updateEquipmentStatus,
-      cancelBooking,
-      optimize,
-      resetDemo,
-      signInWithGoogle,
-      logout,
-      setMode,
-      mode,
-    ],
-  )
+  const logout = useCallback(async () => {
+    const client = createClient()
+    if (!client) return
+    const { error } = await client.auth.signOut()
+    if (error) throw new Error(error.message)
+  }, [])
+
+  const value = useMemo(() => ({
+    gyms, equipment, bookings, schedules, user, role, cloudReady, authLoading,
+    supabaseConfigured, optimization, toast, addGym, addEquipment, addBooking,
+    updateEquipmentStatus, cancelBooking, optimize, resetDemo, signInWithGoogle,
+    logout, setMode, mode, notify,
+  }), [
+    gyms, equipment, bookings, schedules, user, role, cloudReady, authLoading,
+    optimization, toast, addGym, addEquipment, addBooking,
+    updateEquipmentStatus, cancelBooking, optimize, resetDemo, signInWithGoogle,
+    logout, mode, notify,
+  ])
 
   return <GymFlowContext.Provider value={value}>{children}</GymFlowContext.Provider>
 }
 
 export function useGymFlowData() {
   const context = useContext(GymFlowContext)
-  if (!context) {
-    throw new Error('useGymFlowData must be used within a GymFlowProvider')
-  }
+  if (!context) throw new Error('useGymFlowData must be used within a GymFlowProvider')
   return context
 }
