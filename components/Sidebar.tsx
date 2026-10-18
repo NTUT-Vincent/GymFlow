@@ -1,6 +1,5 @@
 'use client'
 
-import { useGymFlowData } from './GymFlowProvider'
 import { NavButton } from './NavButton'
 import { Doodle } from './Doodle'
 import { usePathname } from 'next/navigation'
@@ -15,7 +14,7 @@ const navItems: { icon: string; label: string; href: string }[] = [
 export function Sidebar() {
   const pathname = usePathname()
   return (
-    <nav className="sidebar">
+    <nav className="sidebar" aria-label="會員導覽">
       <div className="side-title">今天想怎麼動？</div>
       {navItems.map((item) => (
         <NavButton
