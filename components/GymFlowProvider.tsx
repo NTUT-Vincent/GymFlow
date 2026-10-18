@@ -224,11 +224,7 @@ export function GymFlowProvider({ children }: { children: ReactNode }) {
 
   const cancelBooking = useCallback(async (id: string) => {
     if (cloudReady && db) {
-      const batch = writeBatch(db)
-      batch.update(doc(db, 'bookings', id), { status: 'cancelled' })
-      const related = schedules.filter((item) => item.bookingId === id)
-      related.forEach((item) => batch.delete(doc(db, 'schedules', item.id)))
-      await batch.commit()
+      await updateDoc(doc(db, 'bookings', id), { status: 'cancelled' })
       return
     }
     setBookings((items) => items.map((item) => (item.id === id ? { ...item, status: 'cancelled' } : item)))
@@ -237,9 +233,11 @@ export function GymFlowProvider({ children }: { children: ReactNode }) {
 
   const optimize = useCallback(async () => {
     const eligible = bookings.filter((item) => item.status === 'pending')
-    const reserved = new Set(schedules.map((item) => item.equipmentId))
-    const safeEquipment = equipment.filter((item) => !reserved.has(item.id))
-    const result = await runOptimizer(eligible, safeEquipment)
+    const activeSchedules = schedules.filter((item) => {
+      const booking = bookings.find((value) => value.id === item.bookingId)
+      return !booking || booking.status !== 'cancelled'
+    })
+    const result = await runOptimizer(eligible, equipment, activeSchedules)
     setOptimization(result)
 
     if (cloudReady && db) {
