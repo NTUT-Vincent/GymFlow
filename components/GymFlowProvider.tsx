@@ -115,7 +115,9 @@ export function GymFlowProvider({ children }: { children: ReactNode }) {
     setSchedules(snapshot.schedules)
   }, [])
 
-  const syncData = useCallback(async (client: Client, uid: string, resolvedRole: Role) => {
+  const syncData = useCallback(async (
+    client: Client, uid: string, resolvedRole: Role, canApply: () => boolean = () => true,
+  ) => {
     const staff = resolvedRole === 'staff' || resolvedRole === 'admin'
     const bookingsQuery = client.from('bookings').select('*')
     const schedulesQuery = client.from('schedules').select('*')
@@ -127,6 +129,7 @@ export function GymFlowProvider({ children }: { children: ReactNode }) {
     ])
     const error = [gymResult.error, equipmentResult.error, bookingResult.error, scheduleResult.error].find(Boolean)
     if (error) throw new Error(error.message)
+    if (!canApply()) return
     applySnapshot({
       gyms: (gymResult.data ?? []).map(toGym),
       equipment: (equipmentResult.data ?? []).map(toEquipment),
@@ -169,7 +172,7 @@ export function GymFlowProvider({ children }: { children: ReactNode }) {
         if (!alive || current !== version) return
         setUser(toAppUser(authUser))
         setRole(resolvedRole)
-        await syncData(client, authUser.id, resolvedRole)
+        await syncData(client, authUser.id, resolvedRole, () => alive && current === version)
         if (!alive || current !== version) return
         setCloudReady(true)
       } catch (error) {
