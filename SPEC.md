@@ -47,3 +47,11 @@ Source of truth: `supabase/migrations/20261018000000_initial_schema.sql`.
 
 ## Navigation
 Next.js `<Link>` client-side navigation between `/`, `/booking`, `/equipment`, `/schedule`, `/admin`.
+
+## Responsive Mobile UI
+- The member view uses a fixed four-item bottom navigation on narrow screens (760px and below), with safe-area inset padding.
+- Mobile headers provide an account menu with member navigation and staff/admin navigation only when the user has permission.
+- The booking form has touch-sized equipment category choices and vertically stacked fields.
+- The schedule timeline becomes vertically stacked cards on small screens.
+- Mobile and desktop layout containers use shrinkable CSS grid tracks and constrained widths to avoid horizontal page overflow.
+- Device-level viewport/screenshot validation remains pending; see `TODO.md` and `docs/mobile-ui.md`.
