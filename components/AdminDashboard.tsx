@@ -44,7 +44,9 @@ export function AdminDashboard({ gyms, equipment, bookings, schedules, cloudRead
         </div>
         <div className="admin-actions">
           <span className={`live-badge ${cloudReady ? '' : 'demo'}`}>{cloudReady ? '● 雲端同步' : '○ 本機示範'}</span>
-          <button className="soft-button" onClick={data.resetDemo}>還原示範</button>
+          {!data.supabaseConfigured && (
+            <button className="soft-button" onClick={data.resetDemo}>還原示範</button>
+          )}
           <button className="primary-button" disabled={working} onClick={runOptimization}>
             {working ? '正在找最佳安排…' : '✦ 執行最佳化排程'}
           </button>

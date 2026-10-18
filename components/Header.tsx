@@ -3,14 +3,13 @@
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useGymFlowData } from './GymFlowProvider'
-import { signInWithGoogle, logout } from '@/lib/firebase'
 
 export function Header() {
   const data = useGymFlowData()
   const router = useRouter()
   const pathname = usePathname()
   const canOpenAdmin =
-    !data.cloudReady || data.role === 'staff' || data.role === 'admin'
+    !data.supabaseConfigured || (!!data.user && (data.role === 'staff' || data.role === 'admin'))
 
   const changeMode = (next: 'member' | 'admin') => {
     if (next === 'admin' && !canOpenAdmin) return
@@ -48,15 +47,15 @@ export function Header() {
         <span className={`sync-dot ${data.cloudReady ? 'online' : ''}`} />
         <span className="account-copy">
           <strong>{data.user?.displayName || (data.cloudReady ? 'GymFlow 會員' : '示範模式')}</strong>
-          <small>{data.cloudReady ? 'Firebase 已同步' : '資料存在此裝置'}</small>
+          <small>{data.cloudReady ? 'Supabase 已同步' : '資料存在此裝置'}</small>
         </span>
-        {data.firebaseConfigured ? (
+        {data.supabaseConfigured ? (
           data.user ? (
-            <button className="icon-button" onClick={() => data.logout()} title="登出">
+            <button className="icon-button" onClick={() => void data.logout().catch((error: Error) => data.notify(error.message))} title="登出">
               ↗
             </button>
           ) : (
-            <button className="soft-button" onClick={() => data.signInWithGoogle()}>
+            <button className="soft-button" onClick={() => void data.signInWithGoogle().catch((error: Error) => data.notify(error.message))}>
               Google 登入
             </button>
           )

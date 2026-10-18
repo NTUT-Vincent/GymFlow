@@ -4,12 +4,12 @@ This file tells coding agents how to track progress on this project by writing s
 
 ## Project Overview
 
-GymFlow is a gym booking / equipment scheduling app rebuilt on **Next.js 15 (App Router)** with **React 19**, **TypeScript**, **Tailwind-free custom CSS**, and **Firebase** (Auth + Firestore) with a `localStorage` demo fallback.
+GymFlow is a gym booking / equipment scheduling app rebuilt on **Next.js 15 (App Router)** with **React 19**, **TypeScript**, **Tailwind-free custom CSS**, and **Supabase** (Auth + PostgreSQL) with a `localStorage` demo fallback.
 
 Key areas:
 - Member views: home, booking, equipment status, schedule
 - Admin view: dashboard, gym management, equipment management, schedule optimizer
-- Core lib: Firebase client, schedule optimizer (was a Vite web worker; now inline sync), demo data
+- Core lib: Supabase client, schedule optimizer (was a Vite web worker; now inline sync), demo data
 
 ## Tracking Files
 
@@ -43,7 +43,7 @@ Use Markdown checkboxes. Prefix status with emoji:
 - [ ] Migrate optimizer worker to server action (next)
 
 ## Todo
-- [ ] Add Firebase Auth middleware route
+- [ ] Add Supabase Auth callback and database RLS
 - [ ] Write unit tests for optimizer
 
 ## Done
@@ -68,14 +68,14 @@ Append-only chronological log. Format: `[YYYY-MM-DD] <summary>` followed by bull
 
 ### `SPEC.md`
 
-Keep this short and versioned. Include: tech stack, routes, data model, Firebase collections, key behaviors.
+Keep this short and versioned. Include: tech stack, routes, data model, Supabase collections, key behaviors.
 
 ```markdown
 # Spec — GymFlow
 
 ## Stack
 - Next.js 15 (App Router), React 19, TypeScript
-- Firebase Auth + Firestore (demo mode: localStorage)
+- Supabase Auth + PostgreSQL/RLS (demo mode: localStorage)
 - Custom CSS (no Tailwind)
 
 ## Routes
@@ -86,10 +86,10 @@ Keep this short and versioned. Include: tech stack, routes, data model, Firebase
 - `/admin` Admin dashboard (gym/equipment mgmt, optimizer)
 
 ## Data Model
-See `types.ts`. Firestore collections: gyms, equipment, bookings, schedules, users.
+See `types.ts`. Supabase tables: profiles, gyms, equipment, bookings, schedules.
 
 ## Key Behaviors
-- Optimizer runs client-side (sync), writes schedules to Firestore when cloud-ready
+- Optimizer runs client-side (sync), commits schedules atomically through Supabase RPC when signed in
 - Role-based access: member / staff / admin
 ```
 
@@ -97,7 +97,7 @@ See `types.ts`. Firestore collections: gyms, equipment, bookings, schedules, use
 
 Create one file per significant topic, e.g.:
 - `docs/architecture.md`
-- `docs/firebase-schema.md`
+- `docs/supabase-schema.md`
 - `docs/optimizer.md`
 - `docs/deployment.md`
 

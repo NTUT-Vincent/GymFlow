@@ -64,7 +64,7 @@ export function BookingPage({ gym, onDone }: BookingPageProps) {
           <label>場館<input value={gym?.name || '尚未建立場館'} disabled /></label>
         </div>
         <div className="form-note"><span>✦</span><p><strong>為什麼保留彈性？</strong><br />多一點彈性通常能顯著降低等待時間，也讓熱門器材分配更公平。</p></div>
-        <button className="primary-button wide" disabled={saving || !gym}>{saving ? '送出中…' : '送出預約需求 →'}</button>
+        <button className="primary-button wide" disabled={saving || !gym || (data.supabaseConfigured && (!data.user || !data.cloudReady))}>{saving ? '送出中…' : '送出預約需求 →'}</button>
       </form>
     </div>
   )
