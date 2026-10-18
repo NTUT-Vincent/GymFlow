@@ -7,6 +7,30 @@ Supabase Auth (Google OAuth), PostgreSQL with RLS, and Vercel**.
 Without Supabase environment variables, the application runs a localStorage-only demo.
 Demo data and authenticated cloud data are **separate**; Firebase data is **not** automatically migrated.
 
+## Current project state (2026-10-18)
+
+- Production: https://gym-flow-iota.vercel.app/ (Vercel project `gym-flow`; `main` branch).
+- Backend: Supabase Google OAuth + PostgreSQL/RLS; PR #5 has been merged into `main`.
+- Reported working: Google sign-in, "Supabase 已同步" indicator, gym/equipment creation and display. End-to-end booking → optimizer RPC → cancellation and security checks **still need verification**.
+- Responsive mobile UI and horizontal overflow fixes are committed; **post-fix 320/375/393px visual/device validation remains pending**.
+- The optimizer is **manual only**. No Supabase Cron or Vercel Cron is configured; automation was explicitly deferred.
+- Current limitations: member booking and admin equipment creation both target the **first gym**; gym creation currently uses fixed hours (06:00–23:00).
+
+### Project documentation
+
+| Resource | Description |
+|---|---|
+| [SPEC.md](SPEC.md) | Versioned as-built scope, routes, roles, model, known limits |
+| [TODO.md](TODO.md) | Completed vs. verification-needed vs. deferred work |
+| [PROGRESS.log](PROGRESS.log) | Append-only work history |
+| [AGENT.md](AGENT.md) | Required workflow for coding agents |
+| [Architecture](docs/architecture.md) | Runtime components, auth and state flow |
+| [Supabase schema](docs/supabase-schema.md) | Tables, RLS, RPCs and SQL diagnostics |
+| [Optimizer](docs/optimizer.md) | Scheduling algorithm and atomic commit |
+| [Deployment](docs/deployment.md) | Vercel, Google OAuth and Supabase setup |
+| [Mobile UI](docs/mobile-ui.md) | Responsive behavior and width overflow fixes |
+| [QA checklist](docs/qa-checklist.md) | Verified observations and pending device/E2E tests |
+
 ## Features
 
 - Member: see available equipment, request booking windows, view schedules, cancel bookings.
@@ -60,7 +84,7 @@ Demo data and authenticated cloud data are **separate**; Firebase data is **not*
 2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    to **Settings > Environment Variables** for Production and Preview.
 3. Add the production website URL to Supabase **URL Configuration** redirect allow list.
-4. Redeploy to pick up environment changes. Check Preview **before merging** the PR.
+4. Redeploy to pick up environment changes. For subsequent changes, verify the intended environment and commit-specific deployment status.
 
 No Firebase settings or service keys are required.
 
@@ -94,7 +118,7 @@ creating a Supabase project.
 
 ## Migration from Firebase
 
-This PR replaces **code and schema**, **not existing Firebase users or Firestore rows**.
+The completed migration replaces **code and schema**, **not existing Firebase users or Firestore rows**.
 Existing Firebase Google users will sign into Supabase as new identities (new UUIDs).
 If real customer data already exists, plan a separate authenticated export/import,
 map user IDs to new Supabase Auth IDs, and validate referential integrity **before**
