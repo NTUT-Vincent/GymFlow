@@ -1,6 +1,8 @@
 # Todo — GymFlow
 
 ## Done
+- [x] Improve mobile member/admin navigation, booking touch targets, and schedule card layout (2026-10-18)
+- [x] Fix horizontal mobile overflow by correcting grid min-width and viewport sizing (2026-10-18)
 - [x] Convert Vite project to Next.js App Router
 - [x] Migrate all pages and components
 - [x] Replace Firebase Auth / Firestore with Supabase Auth + PostgreSQL + RLS (PR)
@@ -12,6 +14,7 @@
 - [x] Create AGENT.md, SPEC.md, PROGRESS.log, TODO.md, docs/
 
 ## Todo
+- [ ] Visually validate the latest responsive changes on 320px, 375px and 393px mobile viewports, including the admin view
 - [x] Add Supabase Google OAuth callback and RLS-backed staff/admin checks
 - [ ] Write unit tests for optimizer (vitest/jest)
 - [x] Add atomic database RPC to commit optimizer results
