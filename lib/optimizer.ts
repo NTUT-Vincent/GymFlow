@@ -50,6 +50,7 @@ export function optimizeSchedule(
   bookings: Booking[],
   equipment: Equipment[],
   options: OptimizeOptions = {},
+  existingSchedules: ScheduleItem[] = [],
 ): OptimizationResult {
   const startedAt = now()
   const deadline = startedAt + (options.timeLimitMs ?? 180)
@@ -66,6 +67,11 @@ export function optimizeSchedule(
   })
 
   const intervals = new Map<string, Array<[number, number]>>()
+  for (const item of existingSchedules) {
+    const entries = intervals.get(item.equipmentId) ?? []
+    entries.push([new Date(item.startAt).getTime(), new Date(item.endAt).getTime()])
+    intervals.set(item.equipmentId, entries)
+  }
   const loads = new Map<string, number>()
   const chosen: Candidate[] = []
   let bestChosen: Candidate[] = []
