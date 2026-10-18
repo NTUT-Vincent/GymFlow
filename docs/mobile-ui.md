@@ -1,17 +1,36 @@
 # GymFlow Responsive Mobile UI
 
-## Changes made on 2026-10-18
+> Updated: 2026-10-18. Source: `app/globals.css`, `Header`, `Sidebar`, `NavButton`, `BookingPage`, and `SchedulePage`.
 
-- Mobile navigation: the member shell switches from a desktop sidebar to a four-item fixed bottom navigation at viewports up to 760px. The header's mobile account menu exposes member navigation, conditional staff/admin entry, and authentication controls.
-- Home page: the hero is shorter on mobile, with the primary booking action emphasized and decorative illustration softened.
-- Booking: category choices use a fieldset and touch-sized buttons; inputs/selects stack to one column and use a minimum 16px font size to reduce browser zoom when editing.
-- Schedule: a vertically stacked, touch-friendly card layout replaces the dense timeline on mobile.
-- Admin: summary stats, actions, tabs, and management forms adapt to narrow screens.
-- Horizontal overflow: fixed grid columns that used intrinsic minimums are switched to `minmax(0, 1fr)` or equivalent, main and admin widths are relative to the container, and text/controls may shrink and wrap.
+## Layout behavior
 
-## Validation
+| Viewport | Navigation / layout |
+|---|---|
+| Desktop (>1050px) | 230px member sidebar; desktop header mode switch |
+| Compact/tablet (761–1050px) | 82px compact icon sidebar; 2-column equipment/stat cards where space allows |
+| Mobile (<=760px) | Fixed four-item member bottom navigation, compact header, account menu for navigation/login/logout; stacked member and admin content |
+| Very narrow (<=360px) | Reduced horizontal padding to protect content space |
 
-- GitHub commits: `ed7d6e4` and `57da62e`.
-- Vercel build statuses were successful when checked.
-- **Pending manual verification**: use browser device emulation and a real mobile device (at least 320px, 375px, and 393px), then inspect the home, booking, equipment, schedule, and admin routes for horizontal scrolling and tap targets.
-- If another overflow is present, inspect the offending DOM element with browser devtools before introducing any additional clipping rules.
+The fixed bottom navigation uses `env(safe-area-inset-bottom)` spacing. Account menu includes a staff/admin link only for authorized roles (or local demo). Role-based UI does not replace Supabase RLS.
+
+## Mobile improvements implemented
+
+- Home: shorter hero, primary booking action emphasized, subdued illustration, stacked dashboard cards.
+- Booking: semantic `fieldset` + `legend`, `aria-pressed` category buttons, large touch targets, stacked fields, 16px form controls.
+- Equipment: single-column equipment cards and wrapping category filters.
+- Schedule: timeline becomes standalone vertical booking cards, with larger cancellation actions.
+- Admin: vertically stacked header/actions, two-column stat cards, horizontally scrollable tabs within their container, single-column gym/equipment management and touch-sized controls.
+- Navigation: labeled four-item bottom bar with `aria-current` and accessible account menu.
+
+## Horizontal overflow incident and mitigation
+
+- A 393px iPhone 16 browser-device screenshot showed content extending beyond the viewport **before** the overflow correction.
+- `57da62e` changed many `1fr` tracks to `minmax(0, 1fr)`, converted main content sizing away from viewport-based fixed calculations, constrained controls, and added wrapping/shrink rules.
+- Root containers also apply `overflow-x: clip` as a defense; clipping alone cannot prove the inner layout fits. Review actual DOM widths, not just the absence of a visible scrollbar.
+- Vercel build of the CSS fix was reported successful. **No confirmed screenshot or actual-device acceptance of the fix has been recorded yet.** Do not mark mobile QA complete on this basis.
+
+## Pending validation
+
+Follow `docs/qa-checklist.md` at 320, 375, 393, and optionally 428px widths. Verify all member routes plus `/admin`, both portrait and landscape when feasible; check no body-level horizontal scrolling and that every button/form is visible and usable.
+
+Relevant commits: `78de0cb`, `ed7d6e4`, `57da62e`.
