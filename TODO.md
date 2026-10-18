@@ -17,7 +17,8 @@
 - [ ] Add server actions for optimizer (move off client)
 - [ ] Add loading.tsx / error.tsx per route
 - [ ] Add sitemap.ts and robots.ts
-- [ ] Configure Firebase Hosting / Vercel deploy
+- [x] Prepare Vercel deployment config and README instructions
+- [ ] Connect repository in Vercel and verify production deployment
 - [ ] Add PWA manifest + service worker (was in Vite)
-- [ ] Add ESLint + Prettier config
+- [ ] Add Prettier config and validate lint
 - [ ] Add Dockerfile for deployment
