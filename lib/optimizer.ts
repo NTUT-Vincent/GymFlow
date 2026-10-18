@@ -56,7 +56,7 @@ export function optimizeSchedule(
   const slotMinutes = options.slotMinutes ?? 15
   const pending = bookings.filter((booking) => booking.status === 'pending')
   const candidatesByBooking = new Map(
-    pending.map((booking) => [booking.id, buildCandidates(booking, equipment, slotMinutes)]),
+    pending.map((booking) => [booking.id, buildCandidates(booking, equipment.filter((item) => item.gymId === booking.gymId), slotMinutes)]),
   )
 
   const ordered = [...pending].sort((a, b) => {
