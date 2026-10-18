@@ -1,22 +1,21 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 import { useGymFlowData } from './GymFlowProvider'
 import { signInWithGoogle, logout } from '@/lib/firebase'
 
 export function Header() {
   const data = useGymFlowData()
+  const router = useRouter()
+  const pathname = usePathname()
   const canOpenAdmin =
     !data.cloudReady || data.role === 'staff' || data.role === 'admin'
 
   const changeMode = (next: 'member' | 'admin') => {
-    if (next === 'admin' && !canOpenAdmin) {
-      data.notify
-      // notify is not exposed via context in this version; keep inline toast via a ref-less approach
-      // We handle toast at the AppShell level. Here we just switch mode if allowed.
-      if (!canOpenAdmin) return
-    }
+    if (next === 'admin' && !canOpenAdmin) return
     data.setMode(next)
+    router.push(next === 'admin' ? '/admin' : '/')
   }
 
   return (
@@ -31,13 +30,13 @@ export function Header() {
 
       <div className="mode-switch" aria-label="切換前後台">
         <button
-          className={data.mode === 'member' ? 'active' : ''}
+          className={pathname !== '/admin' ? 'active' : ''}
           onClick={() => changeMode('member')}
         >
           會員前台
         </button>
         <button
-          className={data.mode === 'admin' ? 'active' : ''}
+          className={pathname === '/admin' ? 'active' : ''}
           onClick={() => changeMode('admin')}
           disabled={!canOpenAdmin}
         >
