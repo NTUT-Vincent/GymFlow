@@ -1,0 +1,10 @@
+# Progress Log — GymFlow
+
+## 2026-10-18
+- Supabase Auth + PostgreSQL migration merged into `main` (PR #5).
+- Improved narrow-screen navigation with an account menu and role-aware admin entry; enlarged bottom navigation and booking touch targets.
+- Converted mobile schedule timeline to cards; reduced the homepage hero height and refined admin form spacing.
+- Fixed potential mobile horizontal page overflow by changing grid tracks to `minmax(0, ...)`, constraining content widths, and allowing content to shrink/wrap.
+- Relevant commits: `ed7d6e4` (mobile UI), `57da62e` (overflow fix). Vercel build status for these commits was reported successful.
+- Retrospectively added project tracking files after identifying an omission in the coding-agent workflow.
+- Follow-up: verify actual mobile layout at 320px / 375px / 393px and confirm no horizontal scrolling on each view.
