@@ -30,7 +30,11 @@ export function MemberHome({ gyms, equipment, schedules, bookings, memberId, mem
           <span className="eyebrow">今天也替自己留一點時間</span>
           <h1>嗨，{memberName}！<br /><em>舒服地動起來吧。</em></h1>
           <p>{gyms[0]?.name || 'GymFlow'} 現在有 <strong>{available.length} 台器材</strong> 可以直接使用。</p>
-          <button className="primary-button" onClick={onBook}>＋ 預約今天的訓練</button>
+          {data.supabaseConfigured && !data.user ? (
+            <button className="primary-button" onClick={() => void data.signInWithGoogle().catch((error: Error) => data.notify(error.message))}>Google 登入後開始預約</button>
+          ) : (
+            <button className="primary-button" onClick={onBook}>＋ 預約今天的訓練</button>
+          )}
         </div>
         <div className="hero-illustration" aria-hidden="true">
           <span className="scribble sun">✦</span>
