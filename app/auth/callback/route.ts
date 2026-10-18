@@ -1,6 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
+type CookieWrite = {
+  name: string
+  value: string
+  options?: {
+    path?: string
+    domain?: string
+    maxAge?: number
+    expires?: Date
+    httpOnly?: boolean
+    secure?: boolean
+    sameSite?: boolean | 'lax' | 'strict' | 'none'
+  }
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
@@ -20,7 +34,7 @@ export async function GET(request: NextRequest) {
       getAll() {
         return request.cookies.getAll()
       },
-      setAll(cookies) {
+      setAll(cookies: CookieWrite[]) {
         cookies.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options)
         })
