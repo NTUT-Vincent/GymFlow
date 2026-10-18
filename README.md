@@ -1,4 +1,4 @@
-# GymFlow 零成本 MVP
+# GymFlow — Next.js / Vercel MVP
 
 GymFlow 是健身房會員預約、器材即時狀態與人員排程後台的 PWA。專案預設連接 Firebase 專案 `gymflow-a7664`，未設定 Firebase Web App 參數時會自動進入可操作的本機示範模式。
 
@@ -9,6 +9,16 @@ GymFlow 是健身房會員預約、器材即時狀態與人員排程後台的 PW
 - 瀏覽器端最佳化：Web Worker 中執行限時 branch-and-bound，遵守器材類型、維修、使用中與時段不重疊限制。
 - Firebase：Authentication、Firestore 規則、複合索引、Hosting 與 PWA 設定。
 - 無 Firebase 參數時使用 localStorage 示範資料，不會產生費用。
+
+## Vercel 部署
+
+1. 在 [Vercel](https://vercel.com/new) 匯入 `NTUT-Vincent/GymFlow`，選擇 Next.js Framework Preset、根目錄 `./`，不設定 Output Directory。
+2. 在 Vercel Project Settings → Environment Variables 設定 `.env.example` 中的 `NEXT_PUBLIC_FIREBASE_*` 值（Production 與 Preview）。
+3. Firebase Console → Authentication → Settings → Authorized domains 加入 Vercel 正式網域；若要在 Preview 網址測試 Google 登入，需一併允許測試網域。
+4. 推送到 `main` 後 Vercel 自動建立 Production deployment；PR 可用 Preview 驗證。
+5. Firestore Security Rules 與 Indexes 仍由 Firebase 部署，**不要**把 Firebase Hosting 當成 Next.js 部署目標。
+
+若未設定 Firebase 環境變數，會進入 localStorage 示範模式；示範資料不會跨裝置同步。
 
 ## 本機啟動
 
@@ -21,7 +31,7 @@ npm run dev
 
 1. 在 Firebase Console 開啟專案 `gymflow-a7664`。
 2. 專案設定 → 一般 → 新增「網頁應用程式」。
-3. 複製 `.env.example` 為 `.env`，填入 Firebase 顯示的 Web App 設定值。
+3. 複製 `.env.example` 為 `.env.local`，填入 Firebase 顯示的 Web App 設定值。
 4. Authentication → Sign-in method → 啟用 Google。
 5. Firestore Database → 建立資料庫，地區建議選擇鄰近使用者的位置。
 6. 第一位管理員登入後，在 Firestore 的 `users/{uid}` 將 `role` 從 `member` 改為 `admin`。
@@ -31,13 +41,13 @@ Firebase Web App 的 `apiKey` 是用戶端識別設定，不是管理員私鑰�
 ## 驗證與部署
 
 ```bash
-npm test
+npx tsc --noEmit
 npm run build
 npx firebase login
-npm run deploy
+npx firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-部署指令會將 Hosting、Firestore Rules 與 Indexes 發佈到 `gymflow-a7664`。請保持 Firebase Spark 方案，不要連結 Cloud Billing，即可維持無信用卡的零成本模式。
+Vercel 負責 Next.js 網頁託管；Firebase 僅提供 Auth、Firestore。請依各服務最新免費額度確認使用限制。
 
 ## 權限模型
 
