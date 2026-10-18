@@ -1,58 +1,101 @@
-# GymFlow — Next.js / Vercel MVP
+# GymFlow — Next.js + Supabase + Vercel
 
-GymFlow 是健身房會員預約、器材即時狀態與人員排程後台的 PWA。專案預設連接 Firebase 專案 `gymflow-a7664`，未設定 Firebase Web App 參數時會自動進入可操作的本機示範模式。
+GymFlow is a gym equipment booking and scheduling MVP with a member UI, staff dashboard,
+and a branch-and-bound schedule optimizer. It uses **Next.js 15, React 19, TypeScript,
+Supabase Auth (Google OAuth), PostgreSQL with RLS, and Vercel**.
 
-## 已完成
+Without Supabase environment variables, the application runs a localStorage-only demo.
+Demo data and authenticated cloud data are **separate**; Firebase data is **not** automatically migrated.
 
-- 會員前台：首頁、器材預約、即時狀態、個人排程與取消。
-- 人員後台：新增健身房、新增器材、維修狀態、預約佇列。
-- 瀏覽器端最佳化：Web Worker 中執行限時 branch-and-bound，遵守器材類型、維修、使用中與時段不重疊限制。
-- Firebase：Authentication、Firestore 規則、複合索引、Hosting 與 PWA 設定。
-- 無 Firebase 參數時使用 localStorage 示範資料，不會產生費用。
+## Features
 
-## Vercel 部署
+- Member: see available equipment, request booking windows, view schedules, cancel bookings.
+- Staff: manage equipment and run the schedule optimizer.
+- Admin: manage gyms in addition to staff operations.
+- Optimizer: client-side bounded search; schedule assignments are committed by an
+  **atomic PostgreSQL RPC** with conflict checks and an exclusion constraint.
+- Realtime: Supabase Postgres Changes for connected sessions (with focus refresh and
+  read-after-write refresh as fallbacks).
 
-1. 在 [Vercel](https://vercel.com/new) 匯入 `NTUT-Vincent/GymFlow`，選擇 Next.js Framework Preset、根目錄 `./`，不設定 Output Directory。
-2. 在 Vercel Project Settings → Environment Variables 設定 `.env.example` 中的 `NEXT_PUBLIC_FIREBASE_*` 值（Production 與 Preview）。
-3. Firebase Console → Authentication → Settings → Authorized domains 加入 Vercel 正式網域；若要在 Preview 網址測試 Google 登入，需一併允許測試網域。
-4. 推送到 `main` 後 Vercel 自動建立 Production deployment；PR 可用 Preview 驗證。
-5. Firestore Security Rules 與 Indexes 仍由 Firebase 部署，**不要**把 Firebase Hosting 當成 Next.js 部署目標。
+## Setup (Supabase)
 
-若未設定 Firebase 環境變數，會進入 localStorage 示範模式；示範資料不會跨裝置同步。
+1. Create a Supabase project at https://supabase.com/dashboard.
+2. Open **SQL Editor**, execute `supabase/migrations/20261018000000_initial_schema.sql`
+   (or use Supabase CLI migrations). This creates:
+   - `profiles`, `gyms`, `equipment`, `bookings`, `schedules`;
+   - new-user trigger, RLS policies and table privileges;
+   - `cancel_booking` and `commit_schedule_batch` transactional functions;
+   - Realtime publication for four application tables.
+3. Supabase > **Authentication > Providers > Google**: enable Google and supply
+   the Google OAuth Client ID and Client Secret from Google Cloud Console.
+   Google's **authorized redirect URI** must be the callback URL shown in the
+   Supabase Google provider settings, usually
+   `https://<YOUR_PROJECT_REF>.supabase.co/auth/v1/callback`.
+4. Supabase > **Authentication > URL Configuration**:
+   - Site URL: your Vercel production URL.
+   - Additional Redirect URLs: `https://<YOUR_VERCEL_DOMAIN>/auth/callback`
+     and `http://localhost:3000/auth/callback`.
+   - Preview URLs: register only the exact trusted previews you plan to test;
+     do not broadly allow unrelated origins.
+5. Create `.env.local` from `.env.example` and fill in the **Project URL** and
+   **Publishable key** from Supabase project settings:
+   ```dotenv
+   NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_KEY
+   ```
+   An older Supabase project's legacy `anon` key can also be used in this
+   publishable-key field if necessary. **Never use a service_role or secret key in NEXT_PUBLIC variables**.
+6. Sign in once with Google, then promote the trusted account in SQL Editor:
+   ```sql
+   update public.profiles set role = 'admin'
+   where email = 'you@example.com';
+   ```
+   **Confirm the email and affected row before running this statement.**
+   A newly signed-in user starts as `member`. After promotion, sign out/in or refresh.
+7. As admin, create the first gym and add equipment from the staff dashboard.
 
-## 本機啟動
+## Vercel
+
+1. Import `NTUT-Vincent/GymFlow` as a **Next.js** project; keep Output Directory at default.
+2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   to **Settings > Environment Variables** for Production and Preview.
+3. Add the production website URL to Supabase **URL Configuration** redirect allow list.
+4. Redeploy to pick up environment changes. Check Preview **before merging** the PR.
+
+No Firebase settings or service keys are required.
+
+## Local verification
 
 ```bash
 npm install
+npm run lint       # TypeScript validation
+npm run build
 npm run dev
 ```
 
-## 連接 Firebase
+Visit http://localhost:3000; test Google login, creating a gym, booking, scheduling,
+and cancellation. Without environment variables, you can test the local demo without
+creating a Supabase project.
 
-1. 在 Firebase Console 開啟專案 `gymflow-a7664`。
-2. 專案設定 → 一般 → 新增「網頁應用程式」。
-3. 複製 `.env.example` 為 `.env.local`，填入 Firebase 顯示的 Web App 設定值。
-4. Authentication → Sign-in method → 啟用 Google。
-5. Firestore Database → 建立資料庫，地區建議選擇鄰近使用者的位置。
-6. 第一位管理員登入後，在 Firestore 的 `users/{uid}` 將 `role` 從 `member` 改為 `admin`。
+## Authorization & data consistency
 
-Firebase Web App 的 `apiKey` 是用戶端識別設定，不是管理員私鑰；仍應搭配本專案的 Firestore Security Rules 與網域限制。
+- `profiles.role` is created as `member` by a database trigger. Client apps
+  have no grant to edit profiles.
+- RLS allows authenticated users to read gyms/equipment, members to see their own
+  bookings/schedules, staff to manage equipment/assign schedules, admins to manage gyms.
+- Only authenticated staff can call `commit_schedule_batch`; it validates booking
+  status, gym, category, time and equipment. PostgreSQL exclusion constraint prevents
+  overlapping reservations on the same equipment.
+- `cancel_booking` checks ownership/staff membership and atomically deletes the
+  associated schedule before returning.
+- Do **not** add a Supabase service-role key to the browser or Vercel public environment.
+- The frontend still runs the search algorithm; for large gyms, move compute off the
+  main thread or onto a trusted backend.
 
-## 驗證與部署
+## Migration from Firebase
 
-```bash
-npx tsc --noEmit
-npm run build
-npx firebase login
-npx firebase deploy --only firestore:rules,firestore:indexes
-```
-
-Vercel 負責 Next.js 網頁託管；Firebase 僅提供 Auth、Firestore。請依各服務最新免費額度確認使用限制。
-
-## 權限模型
-
-- `member`：建立、查看及取消自己的預約。
-- `staff`：管理器材狀態、會員預約與排程。
-- `admin`：包含 staff 權限，並可管理場館與帳號角色。
-
-初始管理員必須由 Firebase Console 手動設定；前端不允許使用者自行提升權限。
+This PR replaces **code and schema**, **not existing Firebase users or Firestore rows**.
+Existing Firebase Google users will sign into Supabase as new identities (new UUIDs).
+If real customer data already exists, plan a separate authenticated export/import,
+map user IDs to new Supabase Auth IDs, and validate referential integrity **before**
+turning off the old project. Never import Firebase credentials into a public repo.
