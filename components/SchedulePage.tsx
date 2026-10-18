@@ -13,7 +13,7 @@ interface SchedulePageProps {
 
 export function SchedulePage({ memberId, bookings, schedules }: SchedulePageProps) {
   const data = useGymFlowData()
-  const mine = schedules.filter((item) => item.memberId === memberId)
+  const mine = schedules.filter((item) => item.memberId === memberId && !bookings.some((booking) => booking.id === item.bookingId && booking.status === 'cancelled'))
   const pending = bookings.filter((item) => item.memberId === memberId && item.status === 'pending')
 
   return (

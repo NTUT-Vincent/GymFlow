@@ -6,6 +6,18 @@ import { useGymFlowData } from '@/components/GymFlowProvider'
 
 export default function AdminRoute() {
   const data = useGymFlowData()
+  const canManage = !data.firebaseConfigured || (data.user && (data.role === 'staff' || data.role === 'admin'))
+
+  if (!canManage) {
+    return (
+      <AdminShell>
+        <section className="admin-panel sketch-card" role="alert">
+          <h1>沒有後台權限</h1>
+          <p>請登入具有 staff 或 admin 權限的帳號。</p>
+        </section>
+      </AdminShell>
+    )
+  }
 
   return (
     <AdminShell>

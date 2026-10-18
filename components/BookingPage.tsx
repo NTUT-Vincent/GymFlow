@@ -15,7 +15,10 @@ export function BookingPage({ gym, onDone }: BookingPageProps) {
   const defaultStart = new Date(Date.now() + 60 * 60 * 1000)
   defaultStart.setMinutes(Math.ceil(defaultStart.getMinutes() / 15) * 15, 0, 0)
   const [category, setCategory] = useState(equipmentCategories[0])
-  const [startAt, setStartAt] = useState(defaultStart.toISOString().slice(0, 16))
+  const [startAt, setStartAt] = useState(() => {
+    const local = new Date(defaultStart.getTime() - defaultStart.getTimezoneOffset() * 60_000)
+    return local.toISOString().slice(0, 16)
+  })
   const [duration, setDuration] = useState(30)
   const [flexible, setFlexible] = useState(30)
   const [saving, setSaving] = useState(false)
@@ -34,6 +37,8 @@ export function BookingPage({ gym, onDone }: BookingPageProps) {
         priority: 1,
       })
       onDone()
+    } catch (error) {
+      data.notify(error instanceof Error ? error.message : '預約失敗，請稍後重試')
     } finally {
       setSaving(false)
     }

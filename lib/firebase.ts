@@ -2,25 +2,15 @@ import { getApp, getApps, initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, type User } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
-const defaultConfig = {
-  apiKey: 'AIzaSyCvLQzyqE4LvIJcI1w9NRyqa4j9Jhd_D5c',
-  authDomain: 'gymflow-a7664.firebaseapp.com',
-  projectId: 'gymflow-a7664',
-  storageBucket: 'gymflow-a7664.firebasestorage.app',
-  messagingSenderId: '849718336345',
-  appId: '1:849718336345:web:c10a1b66222b74c6058a48',
-  measurementId: 'G-84XBWRH05G',
-}
-
 const config = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || defaultConfig.apiKey,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || defaultConfig.authDomain,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || defaultConfig.projectId,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || defaultConfig.storageBucket,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId:
-    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || defaultConfig.messagingSenderId,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || defaultConfig.appId,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || defaultConfig.measurementId,
+    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
 export const firebaseConfigured = Boolean(config.apiKey && config.projectId && config.appId)
@@ -29,8 +19,8 @@ export const firebaseApp = firebaseConfigured
     ? getApp()
     : initializeApp(config)
   : null
-export const auth = firebaseApp ? getAuth(firebaseApp) : null
-export const db = firebaseApp ? getFirestore(firebaseApp) : null
+export const auth = firebaseApp && typeof window !== 'undefined' ? getAuth(firebaseApp) : null
+export const db = firebaseApp && typeof window !== 'undefined' ? getFirestore(firebaseApp) : null
 
 export type FirebaseUser = User | null
 

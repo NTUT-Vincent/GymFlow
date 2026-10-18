@@ -14,10 +14,6 @@ export function NavButton({ icon, label, href, active }: NavButtonProps) {
     <Link
       href={href}
       className={`nav-button ${active ? 'active' : ''}`}
-      onClick={(e) => {
-        e.preventDefault()
-        window.dispatchEvent(new CustomEvent('gymflow-navigate', { detail: { href } }))
-      }}
     >
       <span>{icon}</span>{label}
     </Link>

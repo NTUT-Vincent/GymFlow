@@ -93,11 +93,11 @@ interface GymFlowContextType {
 const GymFlowContext = createContext<GymFlowContextType | undefined>(undefined)
 
 export function GymFlowProvider({ children }: { children: ReactNode }) {
-  const initial = useMemo(readLocalSnapshot, [])
-  const [gyms, setGyms] = useState<Gym[]>(initial.gyms)
-  const [equipment, setEquipment] = useState<Equipment[]>(initial.equipment)
-  const [bookings, setBookings] = useState<Booking[]>(initial.bookings)
-  const [schedules, setSchedules] = useState<ScheduleItem[]>(initial.schedules)
+  const [gyms, setGyms] = useState<Gym[]>(fallbackSnapshot.gyms)
+  const [equipment, setEquipment] = useState<Equipment[]>(fallbackSnapshot.equipment)
+  const [bookings, setBookings] = useState<Booking[]>(fallbackSnapshot.bookings)
+  const [schedules, setSchedules] = useState<ScheduleItem[]>(fallbackSnapshot.schedules)
+  const [localReady, setLocalReady] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [role, setRole] = useState<Role>('member')
   const [cloudReady, setCloudReady] = useState(false)
@@ -108,6 +108,15 @@ export function GymFlowProvider({ children }: { children: ReactNode }) {
   const notify = useCallback((message: string) => {
     setToast(message)
     window.setTimeout(() => setToast(''), 2800)
+  }, [])
+
+  useEffect(() => {
+    const saved = readLocalSnapshot()
+    setGyms(saved.gyms)
+    setEquipment(saved.equipment)
+    setBookings(saved.bookings)
+    setSchedules(saved.schedules)
+    setLocalReady(true)
   }, [])
 
   useEffect(() => {
@@ -159,9 +168,9 @@ export function GymFlowProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (cloudReady) return
+    if (cloudReady || !localReady) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ gyms, equipment, bookings, schedules }))
-  }, [bookings, cloudReady, equipment, gyms, schedules])
+  }, [bookings, cloudReady, equipment, gyms, schedules, localReady])
 
   const addGym = useCallback(
     async (input: Omit<Gym, 'id'>) => {
@@ -220,10 +229,15 @@ export function GymFlowProvider({ children }: { children: ReactNode }) {
     }
     setBookings((items) => items.map((item) => (item.id === id ? { ...item, status: 'cancelled' } : item)))
     setSchedules((items) => items.filter((item) => item.bookingId !== id))
-  }, [cloudReady, db])
+  }, [cloudReady, db, schedules])
 
   const optimize = useCallback(async () => {
-    const result = await runOptimizer(bookings, equipment)
+    const eligible = bookings.filter((item) => item.status === 'pending')
+    const activeSchedules = schedules.filter((item) => {
+      const booking = bookings.find((value) => value.id === item.bookingId)
+      return !booking || booking.status !== 'cancelled'
+    })
+    const result = await runOptimizer(eligible, equipment, activeSchedules)
     setOptimization(result)
 
     if (cloudReady && db) {
@@ -252,7 +266,7 @@ export function GymFlowProvider({ children }: { children: ReactNode }) {
     }
 
     return result
-  }, [bookings, equipment, cloudReady, db])
+  }, [bookings, equipment, schedules, cloudReady, db])
 
   const resetDemo = useCallback(() => {
     setGyms(demoGyms)

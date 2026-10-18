@@ -3,10 +3,11 @@
 import { MemberShell } from '@/components/MemberShell'
 import { MemberHome } from '@/components/MemberHome'
 import { useGymFlowData } from '@/components/GymFlowProvider'
+import { useRouter } from 'next/navigation'
 
 export default function HomePage() {
   const data = useGymFlowData()
-  const currentGym = data.gyms[0]
+  const router = useRouter()
 
   return (
     <MemberShell>
@@ -17,9 +18,7 @@ export default function HomePage() {
         bookings={data.bookings}
         memberId={data.user?.uid ?? 'demo-member'}
         memberName={data.user?.displayName || '小宇'}
-        onBook={() => {
-          // Navigation handled by shell links; keep as no-op here
-        }}
+        onBook={() => router.push('/booking')}
       />
     </MemberShell>
   )
