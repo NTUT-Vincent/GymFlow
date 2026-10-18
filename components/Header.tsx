@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useGymFlowData } from './GymFlowProvider'
 
 export function Header() {
@@ -15,6 +15,14 @@ export function Header() {
     if (next === 'admin' && !canOpenAdmin) return
     data.setMode(next)
     router.push(next === 'admin' ? '/admin' : '/')
+  }
+
+  const handleLogin = () => {
+    void data.signInWithGoogle().catch((error: Error) => data.notify(error.message))
+  }
+
+  const handleLogout = () => {
+    void data.logout().catch((error: Error) => data.notify(error.message))
   }
 
   return (
@@ -51,17 +59,45 @@ export function Header() {
         </span>
         {data.supabaseConfigured ? (
           data.user ? (
-            <button className="icon-button" onClick={() => void data.logout().catch((error: Error) => data.notify(error.message))} title="登出">
+            <button className="icon-button" onClick={handleLogout} title="登出" aria-label="登出">
               ↗
             </button>
           ) : (
-            <button className="soft-button" onClick={() => void data.signInWithGoogle().catch((error: Error) => data.notify(error.message))}>
+            <button className="soft-button" onClick={handleLogin}>
               Google 登入
             </button>
           )
         ) : (
           <span className="avatar">悠</span>
         )}
+
+        <details className="mobile-account-menu">
+          <summary className="mobile-menu-trigger" aria-label="開啟帳號及導航選單">
+            <span aria-hidden="true">☰</span>
+            <span>選單</span>
+          </summary>
+          <div className="mobile-menu-panel">
+            <div className="mobile-menu-profile">
+              <strong>{data.user?.displayName || (data.supabaseConfigured ? '尚未登入' : '示範模式')}</strong>
+              <small>{data.cloudReady ? '● Supabase 已同步' : data.authLoading ? '正在連線…' : '尚未同步雲端資料'}</small>
+            </div>
+            <Link href="/" aria-current={pathname === '/' ? 'page' : undefined} onClick={() => data.setMode('member')}>
+              會員前台
+            </Link>
+            {canOpenAdmin && (
+              <Link href="/admin" aria-current={pathname === '/admin' ? 'page' : undefined} onClick={() => data.setMode('admin')}>
+                人員後台
+              </Link>
+            )}
+            {data.supabaseConfigured && (
+              data.user ? (
+                <button onClick={handleLogout}>登出帳號</button>
+              ) : (
+                <button onClick={handleLogin}>使用 Google 登入</button>
+              )
+            )}
+          </div>
+        </details>
       </div>
     </header>
   )
