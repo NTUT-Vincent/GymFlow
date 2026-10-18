@@ -6,7 +6,11 @@ import { useGymFlowData } from '@/components/GymFlowProvider'
 
 export default function AdminRoute() {
   const data = useGymFlowData()
-  const canManage = !data.firebaseConfigured || (data.user && (data.role === 'staff' || data.role === 'admin'))
+  const canManage = !data.supabaseConfigured || (!!data.user && (data.role === 'staff' || data.role === 'admin'))
+
+  if (data.authLoading) {
+    return <AdminShell><p>正在驗證登入狀態…</p></AdminShell>
+  }
 
   if (!canManage) {
     return (
