@@ -20,7 +20,7 @@ export function MemberHome({ gyms, equipment, schedules, bookings, memberId, mem
   const data = useGymFlowData()
   const available = equipment.filter((item) => item.status === 'available')
   const mySchedules = schedules.filter((item) => item.memberId === memberId)
-  const next = mySchedules.sort((a, b) => a.startAt.localeCompare(b.startAt))[0]
+  const next = mySchedules.filter((item) => new Date(item.endAt).getTime() > Date.now()).sort((a, b) => a.startAt.localeCompare(b.startAt))[0]
   const pending = bookings.filter((item) => item.memberId === memberId && item.status === 'pending').length
 
   return (
